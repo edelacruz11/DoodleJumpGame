@@ -8,7 +8,6 @@ public class Ground {
     private Texture groundLeft;
     private Texture groundMiddle;
     private Texture groundRight;
-
     private float scale = 1.2f;
 
     public Ground() {
@@ -42,8 +41,6 @@ public class Ground {
             batch.draw(groundMiddle, currentX, y, tileMiddleWidth, tileHeight);
             currentX += tileMiddleWidth;
         }
-
-        // Si hay un hueco muy pequeño entre la última middle y right, lo ignoramos
     }
 
     public float getHeight() {

@@ -9,52 +9,54 @@ public class PlatformManager {
     private float nextSpawnY;
     private float rowHeight;
     private float worldWidth;
+    private float viewHeight;
     private float scale;
-    private int visibleRows;
+    private int nextRowIndex;
 
     public PlatformManager(float worldWidth,
                            float scale,
                            float rowHeight,
                            int initialRows,
-                           int visibleRows) {
-        this.worldWidth  = worldWidth;
-        this.scale       = scale;
-        this.rowHeight   = rowHeight;
-        this.visibleRows = visibleRows;
-        platforms       = new Array<>();
-        nextSpawnY      = 0;
+                           float viewHeight) {
+        this.worldWidth = worldWidth;
+        this.scale = scale;
+        this.rowHeight = rowHeight;
+        this.viewHeight = viewHeight;
+        platforms = new Array<>();
+
+        nextSpawnY = 0;
+        nextRowIndex = 0;
 
         Platform.loadTextures(scale);
 
-        // Generamos inicialmente `initialRows` filas
         for (int i = 0; i < initialRows; i++) {
-            spawnRow(i);
-            nextSpawnY += rowHeight;
+            spawnNextRow();
         }
     }
 
-    private void spawnRow(int rowIndex) {
-        float y = rowIndex * rowHeight;
+    private void spawnNextRow() {
+        float y = nextRowIndex * rowHeight;
 
-        // Calcula el ancho real de la plataforma (3 piezas)
-        float pieceW    = Platform.getMiddleWidth(scale);
-        float platformW = pieceW * 3;
+        // una plataforma en filas pares
+        if (nextRowIndex % 2 == 0) {
+            float pieceW = Platform.getMiddleWidth(scale);
+            float platformW = pieceW * 3;
 
-        // Genera un X aleatorio tal que la plataforma quepa completamente
-        float x = MathUtils.random(0f, worldWidth - platformW);
+            float x = MathUtils.random(0f, worldWidth - platformW);
+            platforms.add(new Platform(x, y, scale));
+        }
 
-        platforms.add(new Platform(x, y, scale));
+        nextRowIndex++;
+        nextSpawnY = nextRowIndex * rowHeight;
     }
-
 
     public void update(float cameraY) {
-        float spawnLimitY = cameraY + visibleRows * rowHeight;
+        float spawnLimitY = cameraY + viewHeight;
         while (nextSpawnY <= spawnLimitY) {
-            int rowIndex = (int)(nextSpawnY / rowHeight);
-            spawnRow(rowIndex);
-            nextSpawnY += rowHeight;
+            spawnNextRow();
         }
-        // Elimina las viejas
+
+        // Elimina plataformas que queden por debajo
         for (int i = platforms.size - 1; i >= 0; i--) {
             Platform p = platforms.get(i);
             if (p.y + p.height < cameraY - rowHeight) {
@@ -80,4 +82,7 @@ public class PlatformManager {
         this.worldWidth = worldWidth;
     }
 
+    public void setViewHeight(float viewHeight) {
+        this.viewHeight = viewHeight;
+    }
 }

@@ -1,85 +1,120 @@
-// Player.java
 package com.mygdx.jump;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Rectangle;
 
 public class Player {
-    private Texture texture;
+    private Texture jumpTex, duckTex;
     private float x, y;
     private float width, height;
     private float scale = 2f;
-
     private float velocityX = 0f;
-    private float speed     = 300f;
-
+    private float speed = 650f;
     private float velocityY = 0f;
-    private float gravity   = -800f;
-    private float jumpSpeed = 650f;
-
+    private float gravity = -1800f;
+    private float jumpSpeed = 1200f;
     private float groundHeight;
     private String color;
 
-    public Player(String color, float groundHeight) {
-        this.color        = color;
-        this.groundHeight = groundHeight;
-        loadTexture();
-        x      = 100;
-        y      = groundHeight;
-        width  = texture.getWidth();
-        height = texture.getHeight();
-    }
+    private boolean facingRight = true;
+    private boolean onGround = true;
 
-    private void loadTexture() {
-        if (texture != null) texture.dispose();
-        texture = new Texture("player/" + color + "/front.png");
+    // Hitbox de pies
+    private static final float FEET_W_RATIO = 0.25f;
+    private static final float FEET_H_RATIO = 0.1f;
+    private Rectangle boundsFeet;
+
+    public Player(String color, float groundHeight) {
+        this.color = color;
+        this.groundHeight = groundHeight;
+
+        jumpTex = new Texture("player/" + color + "/jump.png");
+        duckTex = new Texture("player/" + color + "/duck.png");
+
+        width = jumpTex.getWidth();
+        height = jumpTex.getHeight();
+
+        x = 100;
+        y = groundHeight;
+
+        float w = width * scale * FEET_W_RATIO;
+        float h = height * scale * FEET_H_RATIO;
+        boundsFeet = new Rectangle(x + (width*scale - w)/2f, y, w, h);
     }
 
     public void update(float delta) {
-        // Movimiento lateral
+        // Movimiento horizontal y dirección
+        if (velocityX > 0) facingRight = true;
+        else if (velocityX < 0) facingRight = false;
         x += velocityX * delta;
 
         // Física vertical
         velocityY += gravity * delta;
-        y         += velocityY * delta;
+        y += velocityY * delta;
 
-        // Rebote en el suelo
+        // Toca el suelo
         if (y <= groundHeight) {
-            y         = groundHeight;
+            y = groundHeight;
             velocityY = jumpSpeed;
+            onGround = true;
+        } else {
+            onGround = false;
         }
 
-        // Límites horizontal de pantalla (usa world coords)
+        // Límites horizontal
         float screenW = Gdx.graphics.getWidth();
-        if (x < 0)      x = 0;
-        if (x + getWidth() > screenW) {
-            x = screenW - getWidth();
-        }
+        if (x < 0) x = 0;
+        if (x + getWidth() > screenW) x = screenW - getWidth();
+
+        // Actualiza hitbox pies
+        float w = width * scale * FEET_W_RATIO;
+        float h = height * scale * FEET_H_RATIO;
+        boundsFeet.set(x + (width*scale - w)/2f, y, w, h);
     }
 
     public void moveLeft()  { velocityX = -speed; }
-    public void moveRight() { velocityX =  speed; }
-    public void stop()      { velocityX = 0f;     }
+    public void moveRight() { velocityX = speed; }
+    public void stop() { velocityX = 0; }
 
     public void render(SpriteBatch batch) {
-        batch.draw(texture, x, y, width * scale, height * scale);
+        Texture toDraw;
+
+        if (onGround) {
+            toDraw = jumpTex;
+        } else if (velocityY < 0) {
+            toDraw = duckTex;
+        } else {
+            toDraw = jumpTex;
+        }
+
+        float drawX = x;
+        float drawW = width * scale;
+        if (!facingRight) {
+            drawX += drawW;
+            drawW = -drawW;
+        }
+
+        batch.draw(toDraw, drawX, y, drawW, height * scale);
     }
 
     public void dispose() {
-        if (texture != null) texture.dispose();
+        jumpTex.dispose();
+        duckTex.dispose();
     }
 
     public void setPosition(float x, float y) { this.x = x; this.y = y; }
-    public void setScale(float scale)          { this.scale = scale;      }
-
-    public float getY()           { return y;             }
-    public float getX()           { return x;             }
-    public float getWidth()       { return width * scale; }
-    public float getHeight()      { return height * scale;}
-    public float getVelocityY()   { return velocityY;     }
-
-    /** Fuerza el salto (se invoca al pisar una plataforma) */
+    public void setScale(float s) { this.scale = s; }
+    public void setSpeed(float s) { this.speed = s; }
+    public void setJumpSpeed(float js) { this.jumpSpeed = js; }
+    public void setGravity(float g) { this.gravity   = g; }
+    public float getX() { return x; }
+    public float getY() { return y; }
+    public float getWidth() { return width  * scale;}
+    public float getHeight() { return height * scale;}
+    public float getVelocityY() { return velocityY; }
+    public Rectangle getFeetBounds() { return boundsFeet;  }
     public void jump() {
         this.velocityY = jumpSpeed;
     }

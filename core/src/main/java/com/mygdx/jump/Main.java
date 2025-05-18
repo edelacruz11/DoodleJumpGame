@@ -4,6 +4,7 @@ package com.mygdx.jump;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.badlogic.gdx.graphics.Texture;
@@ -12,76 +13,70 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 public class Main extends ApplicationAdapter {
-    private SpriteBatch     batch;
-    private Texture         image, background;
-    private BitmapFont      font;
-    private Ground          ground;
-    private Player          player;
+    private SpriteBatch batch;
+    private Texture image, background;
+    private BitmapFont font;
+    private Ground ground;
+    private Player player;
     private PlatformManager platformManager;
 
     private OrthographicCamera camera;
-    private Viewport           viewport;
-    private float              worldWidth, worldHeight;
+    private Viewport viewport;
+    private float worldWidth, worldHeight;
 
-    private enum Estado { INICIO, JUEGO }
+    private enum Estado { INICIO, JUEGO, GAME_OVER }
     private Estado estadoActual;
 
     @Override
     public void create() {
-        // 1) Cámara + viewport
-        camera   = new OrthographicCamera();
+        camera = new OrthographicCamera();
         viewport = new ScreenViewport(camera);
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
         worldWidth  = viewport.getWorldWidth();
         worldHeight = viewport.getWorldHeight();
+        camera.position.set(worldWidth/2f, worldHeight/2f, 0);
+        camera.update();
 
-        // 2) CARGA primero las texturas estáticas de Plataforma
-        float scalePlat = 1.2f;
-        Platform.loadTextures(scalePlat);
-
-        // 3) Ahora ya puedes calcular rowHeight y visibleRows SIN null
-        float rowH        = Platform.getMiddleHeight(scalePlat) * 2f;
-        int visibleRows   = (int)(worldHeight / rowH) + 1;
-        int initialRows   = visibleRows + 1;                // UNA FILA MÁS que visible
-        platformManager   = new PlatformManager(
-            worldWidth,
-            scalePlat,
-            rowH,
-            initialRows,
-            visibleRows
-        );
-
-
-        // 5) Resto de tu inicialización: batch, image, background, font...
-        batch      = new SpriteBatch();
-        image      = new Texture("libgdx.png");
+        batch = new SpriteBatch();
+        image = new Texture("libgdx.png");
         background = new Texture("background/background.jpg");
-        font       = new BitmapFont();
+        font = new BitmapFont();
         font.getData().setScale(2f);
 
-        // 6) Ground y Player
         ground = new Ground();
-        player = new Player("beige", ground.getHeight());
-        player.setScale(2f);
-        player.setPosition(
-            worldWidth * 0.5f - player.getWidth() * 0.5f,
-            ground.getHeight()
-        );
+        crearJuego();
 
         estadoActual = Estado.INICIO;
     }
 
+    private void crearJuego() {
+        float scalePlat = 1.2f;
+        Platform.loadTextures(scalePlat);
+        float rowH = Platform.getMiddleHeight(scalePlat) * 2f;
+
+        platformManager = new PlatformManager(worldWidth, scalePlat, rowH, 0, worldHeight);
+
+        player = new Player("beige", ground.getHeight());
+        player.setScale(2f);
+        player.setPosition(
+            worldWidth * .5f - player.getWidth() * .5f,
+            ground.getHeight()
+        );
+
+        camera.position.y = worldHeight / 2f;
+        camera.update();
+    }
 
     @Override
     public void resize(int w, int h) {
         viewport.update(w, h, true);
-        worldWidth  = viewport.getWorldWidth();
+        worldWidth = viewport.getWorldWidth();
         worldHeight = viewport.getWorldHeight();
-
-        // Importante: actualizamos el worldWidth en el manager
+        camera.position.set(worldWidth/2f, camera.position.y, 0);
+        camera.update();
         platformManager.setWorldWidth(worldWidth);
+        platformManager.setViewHeight(worldHeight);
     }
-
 
     @Override
     public void render() {
@@ -89,43 +84,40 @@ public class Main extends ApplicationAdapter {
         float delta = Gdx.graphics.getDeltaTime();
 
         if (estadoActual == Estado.JUEGO) {
-            // Input lateral
             if (Gdx.input.isTouched()) {
                 int tx = Gdx.input.getX();
-                if (tx < Gdx.graphics.getWidth() * .5f)
-                    player.moveLeft();
-                else
-                    player.moveRight();
+                if (tx < Gdx.graphics.getWidth() * .5f) player.moveLeft();
+                else                                   player.moveRight();
             } else {
                 player.stop();
             }
-
             player.update(delta);
 
-            // Detección de colisión en pies para salto sobre plataformas
+            // Colisiones con plataformas
+            Rectangle feet = player.getFeetBounds();
             for (Platform p : platformManager.getPlatforms()) {
                 if (player.getVelocityY() <= 0) {
-                    float feetY     = player.getY();
-                    float topY      = p.y + p.height;
-                    boolean yHit    = feetY <= topY && feetY >= p.y;
-                    boolean xOverlap = player.getX() + player.getWidth() > p.x
-                        && player.getX() < p.x + p.width;
-                    if (yHit && xOverlap) {
+                    Rectangle topPlat = new Rectangle(p.x, p.y + p.height, p.width, 1f);
+                    if (feet.overlaps(topPlat)) {
                         player.jump();
                         break;
                     }
                 }
             }
 
-            // Cámara: solo sube con el jugador
+            // Mover cámara si el jugador sube
             if (player.getY() > camera.position.y) {
                 camera.position.y = player.getY();
             }
-            camera.update();
 
-            // Generar y limpiar plataformas
-            float camBottomY = camera.position.y - worldHeight * .5f;
-            platformManager.update(camBottomY);
+            // Verificar si el jugador cayó al vacío
+            float bottomCameraY = camera.position.y - worldHeight * .5f;
+            if (player.getY() + player.getHeight() < bottomCameraY) {
+                estadoActual = Estado.GAME_OVER;
+            }
+
+            camera.update();
+            platformManager.update(bottomCameraY);
         }
 
         batch.setProjectionMatrix(camera.combined);
@@ -133,18 +125,24 @@ public class Main extends ApplicationAdapter {
 
         if (estadoActual == Estado.INICIO) {
             batch.draw(image, worldWidth * .175f, worldHeight * .65f);
-            font.draw(batch, "Toca para empezar",
-                worldWidth * .15f, worldHeight * .4f);
+            font.draw(batch, "Toca para empezar", worldWidth * .15f, worldHeight * .4f);
             if (Gdx.input.justTouched()) estadoActual = Estado.JUEGO;
-
-        } else {
-            // Dibuja fondo centrado en cámara
+        } else if (estadoActual == Estado.JUEGO) {
             float bgY = camera.position.y - worldHeight * .5f;
             batch.draw(background, 0, bgY, worldWidth, worldHeight);
-
             platformManager.render(batch);
             ground.render(batch);
             player.render(batch);
+        } else if (estadoActual == Estado.GAME_OVER) {
+            float bgY = camera.position.y - worldHeight * .5f;
+            batch.draw(background, 0, bgY, worldWidth, worldHeight);
+            font.draw(batch, "Game Over", worldWidth * .4f, camera.position.y);
+            font.draw(batch, "Pulsa para reiniciar", worldWidth * .3f, camera.position.y - 40);
+
+            if (Gdx.input.justTouched()) {
+                crearJuego();
+                estadoActual = Estado.INICIO;
+            }
         }
 
         batch.end();
