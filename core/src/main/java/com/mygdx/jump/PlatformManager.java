@@ -1,3 +1,4 @@
+// PlatformManager.java
 package com.mygdx.jump;
 
 import com.badlogic.gdx.math.MathUtils;
@@ -5,84 +6,112 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 public class PlatformManager {
-    private Array<Platform> platforms;
-    private float nextSpawnY;
-    private float rowHeight;
-    private float worldWidth;
-    private float viewHeight;
-    private float scale;
+    private Array<PlatformBase> items = new Array<>();
+    private float worldWidth, rowHeight, viewHeight, scale;
+    private int cloudStartRow, fullCloudRow;
     private int nextRowIndex;
+    private float nextSpawnY;
 
-    public PlatformManager(float worldWidth,
-                           float scale,
-                           float rowHeight,
-                           int initialRows,
-                           float viewHeight) {
+    public PlatformManager(
+        float worldWidth,
+        float scale,
+        float rowHeight,
+        int cloudStartRow,
+        int fullCloudRow,
+        int initialRows,
+        float viewHeight
+    ) {
         this.worldWidth = worldWidth;
         this.scale = scale;
         this.rowHeight = rowHeight;
+        this.cloudStartRow = cloudStartRow;
+        this.fullCloudRow = fullCloudRow;
         this.viewHeight = viewHeight;
-        platforms = new Array<>();
-
-        nextSpawnY = 0;
-        nextRowIndex = 0;
+        this.nextRowIndex = 0;
+        this.nextSpawnY = 0;
 
         Platform.loadTextures(scale);
+        Cloud.loadTextures(scale);
 
         for (int i = 0; i < initialRows; i++) {
-            spawnNextRow();
+            spawnRow();
         }
     }
 
-    private void spawnNextRow() {
-        float y = nextRowIndex * rowHeight;
+    private void spawnRow() {
+        int row = nextRowIndex;
+        float y = row * rowHeight;
 
-        // una plataforma en filas pares
-        if (nextRowIndex % 2 == 0) {
-            float pieceW = Platform.getMiddleWidth(scale);
-            float platformW = pieceW * 3;
-
-            float x = MathUtils.random(0f, worldWidth - platformW);
-            platforms.add(new Platform(x, y, scale));
+        // Solo filas pares generan algo
+        if (row % 2 != 0) {
+            advanceRow();
+            return;
         }
 
+        if (row < cloudStartRow) {
+            items.add(randomPlatform(y));
+        } else if (row < fullCloudRow) {
+            if (MathUtils.randomBoolean()) {
+                items.add(randomCloud(y));
+            } else {
+                items.add(randomPlatform(y));
+            }
+        } else {
+            items.add(randomCloud(y));
+        }
+
+        advanceRow();
+    }
+
+    private void advanceRow() {
         nextRowIndex++;
         nextSpawnY = nextRowIndex * rowHeight;
     }
 
+    private Platform randomPlatform(float y) {
+        float w = Platform.getMiddleWidth(scale) * 3;
+        float x = MathUtils.random(0f, worldWidth - w);
+        return new Platform(x, y, scale);
+    }
+
+    private Cloud randomCloud(float y) {
+        float w = (Cloud.texLeft.getWidth()
+            + Cloud.texMiddle.getWidth()
+            + Cloud.texRight.getWidth()) * scale;
+        float x = MathUtils.random(0f, worldWidth - w);
+        return new Cloud(x, y, scale);
+    }
+
     public void update(float cameraY) {
-        float spawnLimitY = cameraY + viewHeight;
-        while (nextSpawnY <= spawnLimitY) {
-            spawnNextRow();
+        float limit = cameraY + viewHeight;
+        while (nextSpawnY <= limit) {
+            spawnRow();
         }
 
-        // Elimina plataformas que queden por debajo
-        for (int i = platforms.size - 1; i >= 0; i--) {
-            Platform p = platforms.get(i);
-            if (p.y + p.height < cameraY - rowHeight) {
-                platforms.removeIndex(i);
+        for (int i = items.size - 1; i >= 0; i--) {
+            PlatformBase b = items.get(i);
+            if (b.isVanished() || b.getY() + b.getHeight() < cameraY - rowHeight) {
+                items.removeIndex(i);
             }
         }
     }
 
     public void render(SpriteBatch batch) {
-        for (Platform p : platforms) p.render(batch);
+        for (PlatformBase b : items) {
+            b.render(batch);
+        }
+    }
+
+    public Array<PlatformBase> getAllPlatforms() {
+        return items;
     }
 
     public void dispose() {
         Platform.disposeTextures();
-        platforms.clear();
+        Cloud.disposeTextures();
+        items.clear();
     }
 
-    public Array<Platform> getPlatforms() {
-        return platforms;
-    }
-
-    public void setWorldWidth(float worldWidth) {
-        this.worldWidth = worldWidth;
-    }
-
-    public void setViewHeight(float viewHeight) {
-        this.viewHeight = viewHeight;
-    }
+    public void setWorldWidth(float w) { this.worldWidth = w; }
+    public void setViewHeight(float h) { this.viewHeight = h; }
 }

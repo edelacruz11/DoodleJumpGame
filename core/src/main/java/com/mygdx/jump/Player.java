@@ -74,7 +74,7 @@ public class Player {
         boundsFeet.set(x + (width*scale - w)/2f, y, w, h);
     }
 
-    public void moveLeft()  { velocityX = -speed; }
+    public void moveLeft() { velocityX = -speed; }
     public void moveRight() { velocityX = speed; }
     public void stop() { velocityX = 0; }
 

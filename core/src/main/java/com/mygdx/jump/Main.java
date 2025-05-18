@@ -27,49 +27,70 @@ public class Main extends ApplicationAdapter {
     private enum Estado { INICIO, JUEGO, GAME_OVER }
     private Estado estadoActual;
 
+    private Texture[] numbers = new Texture[10];
+    private int score, lastRowReached;
+    private float rowHeight;
+    private final float MARGIN = 20f;
+    private final float DIGIT_SCALE   = 2.5f;
+    private final float DIGIT_SPACING = 0.5f;
+
     @Override
     public void create() {
         camera = new OrthographicCamera();
         viewport = new ScreenViewport(camera);
         viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
-        worldWidth  = viewport.getWorldWidth();
+        worldWidth = viewport.getWorldWidth();
         worldHeight = viewport.getWorldHeight();
         camera.position.set(worldWidth/2f, worldHeight/2f, 0);
         camera.update();
 
         batch = new SpriteBatch();
         image = new Texture("libgdx.png");
-        background = new Texture("background/background.jpg");
+        background = new Texture("background/background2.png");
         font = new BitmapFont();
         font.getData().setScale(2f);
 
         ground = new Ground();
-        crearJuego();
+        for (int i = 0; i < 10; i++) {
+            numbers[i] = new Texture("extras/numbers/" + i + ".png");
+        }
 
+        crearJuego();
         estadoActual = Estado.INICIO;
     }
 
     private void crearJuego() {
         float scalePlat = 1.2f;
         Platform.loadTextures(scalePlat);
-        float rowH = Platform.getMiddleHeight(scalePlat) * 2f;
+        rowHeight = Platform.getMiddleHeight(scalePlat) * 2f;
 
-        platformManager = new PlatformManager(worldWidth, scalePlat, rowH, 0, worldHeight);
+        platformManager = new PlatformManager(
+            worldWidth,
+            scalePlat,
+            rowHeight,
+            /*cloudStartRow=*/100,
+            /*fullCloudRow=*/200,
+            /*initialRows=*/0,
+            worldHeight
+        );
 
         player = new Player("beige", ground.getHeight());
         player.setScale(2f);
         player.setPosition(
-            worldWidth * .5f - player.getWidth() * .5f,
+            worldWidth * 0.5f - player.getWidth() * 0.5f,
             ground.getHeight()
         );
 
         camera.position.y = worldHeight / 2f;
         camera.update();
+
+        score = 0;
+        lastRowReached = -1;
     }
 
     @Override
-    public void resize(int w, int h) {
-        viewport.update(w, h, true);
+    public void resize(int width, int height) {
+        viewport.update(width, height, true);
         worldWidth = viewport.getWorldWidth();
         worldHeight = viewport.getWorldHeight();
         camera.position.set(worldWidth/2f, camera.position.y, 0);
@@ -84,61 +105,107 @@ public class Main extends ApplicationAdapter {
         float delta = Gdx.graphics.getDeltaTime();
 
         if (estadoActual == Estado.JUEGO) {
+            // Input izquierdo/derecho
             if (Gdx.input.isTouched()) {
                 int tx = Gdx.input.getX();
-                if (tx < Gdx.graphics.getWidth() * .5f) player.moveLeft();
-                else                                   player.moveRight();
+                if (tx < Gdx.graphics.getWidth() * 0.5f) {
+                    player.moveLeft();
+                } else {
+                    player.moveRight();
+                }
             } else {
                 player.stop();
             }
+
             player.update(delta);
 
-            // Colisiones con plataformas
+            // Colisiones con plataformas y nubes
             Rectangle feet = player.getFeetBounds();
-            for (Platform p : platformManager.getPlatforms()) {
-                if (player.getVelocityY() <= 0) {
-                    Rectangle topPlat = new Rectangle(p.x, p.y + p.height, p.width, 1f);
-                    if (feet.overlaps(topPlat)) {
+            for (PlatformBase b : platformManager.getAllPlatforms()) {
+                if (!b.isVanished() && player.getVelocityY() <= 0) {
+                    Rectangle top = new Rectangle(
+                        b.getX(),
+                        b.getY() + b.getHeight(),
+                        b.getWidth(),
+                        1f
+                    );
+                    if (feet.overlaps(top)) {
                         player.jump();
+                        b.onStep();
                         break;
                     }
                 }
             }
 
-            // Mover cámara si el jugador sube
+            // Mover cámara si sube
             if (player.getY() > camera.position.y) {
                 camera.position.y = player.getY();
             }
 
-            // Verificar si el jugador cayó al vacío
-            float bottomCameraY = camera.position.y - worldHeight * .5f;
-            if (player.getY() + player.getHeight() < bottomCameraY) {
+            // Game over si cae por debajo
+            float bottom = camera.position.y - worldHeight * 0.5f;
+            if (player.getY() + player.getHeight() < bottom) {
                 estadoActual = Estado.GAME_OVER;
             }
 
+            // Actualizar puntuación por filas superadas
+            int currentRow = (int)(player.getY() / rowHeight);
+            if (currentRow > lastRowReached) {
+                score += currentRow - lastRowReached;
+                lastRowReached = currentRow;
+            }
+
             camera.update();
-            platformManager.update(bottomCameraY);
+            platformManager.update(bottom);
         }
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
         if (estadoActual == Estado.INICIO) {
-            batch.draw(image, worldWidth * .175f, worldHeight * .65f);
-            font.draw(batch, "Toca para empezar", worldWidth * .15f, worldHeight * .4f);
-            if (Gdx.input.justTouched()) estadoActual = Estado.JUEGO;
+            batch.draw(image, worldWidth * 0.175f, worldHeight * 0.65f);
+            font.draw(batch,
+                "Toca para empezar",
+                worldWidth * 0.15f,
+                worldHeight * 0.4f);
+            if (Gdx.input.justTouched()) {
+                estadoActual = Estado.JUEGO;
+            }
+
         } else if (estadoActual == Estado.JUEGO) {
-            float bgY = camera.position.y - worldHeight * .5f;
+            float bgY = camera.position.y - worldHeight * 0.5f;
             batch.draw(background, 0, bgY, worldWidth, worldHeight);
             platformManager.render(batch);
             ground.render(batch);
             player.render(batch);
-        } else if (estadoActual == Estado.GAME_OVER) {
-            float bgY = camera.position.y - worldHeight * .5f;
-            batch.draw(background, 0, bgY, worldWidth, worldHeight);
-            font.draw(batch, "Game Over", worldWidth * .4f, camera.position.y);
-            font.draw(batch, "Pulsa para reiniciar", worldWidth * .3f, camera.position.y - 40);
 
+            // Dibuja puntuación
+            float dW = numbers[0].getWidth() * DIGIT_SCALE;
+            float dH = numbers[0].getHeight() * DIGIT_SCALE;
+            float spacing = dW * DIGIT_SPACING;
+            float startX = camera.position.x - worldWidth * 0.5f + MARGIN;
+            float startY = camera.position.y + worldHeight * 0.5f - MARGIN - dH;
+            String txt = Integer.toString(score);
+            for (int i = 0; i < txt.length(); i++) {
+                int d = txt.charAt(i) - '0';
+                batch.draw(numbers[d],
+                    startX + i * spacing,
+                    startY,
+                    dW,
+                    dH);
+            }
+
+        } else { // GAME_OVER
+            float bgY = camera.position.y - worldHeight * 0.5f;
+            batch.draw(background, 0, bgY, worldWidth, worldHeight);
+            font.draw(batch,
+                "Game Over",
+                camera.position.x - 60,
+                camera.position.y + 20);
+            font.draw(batch,
+                "Pulsa para reiniciar",
+                camera.position.x - 100,
+                camera.position.y - 20);
             if (Gdx.input.justTouched()) {
                 crearJuego();
                 estadoActual = Estado.INICIO;
@@ -157,5 +224,6 @@ public class Main extends ApplicationAdapter {
         ground.dispose();
         player.dispose();
         platformManager.dispose();
+        for (Texture t : numbers) t.dispose();
     }
 }
