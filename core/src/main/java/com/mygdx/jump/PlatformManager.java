@@ -59,7 +59,7 @@ public class PlatformManager {
             // Mueve 50% de las nubes a partir de 300, y todas a partir de 400
             if (row >= 300 && (row < 400 ? MathUtils.randomBoolean(0.5f) : true)) {
                 //velocidad de las nubes
-                float speed = MathUtils.random(100f, 150f);
+                float speed = MathUtils.random(600f, 400f);
                 if (MathUtils.randomBoolean()) speed = -speed;
                 c.startMoving(speed);
             }

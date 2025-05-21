@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
@@ -126,7 +127,8 @@ public class Main extends ApplicationAdapter {
         } else if (estadoActual == Estado.JUEGO) {
             float delta = Gdx.graphics.getDeltaTime();
 
-            // Input horizontal
+            /*
+            // Input horizontal por taps
             if (Gdx.input.isTouched()) {
                 int tx = Gdx.input.getX();
                 if (tx < Gdx.graphics.getWidth()*0.5f) player.moveLeft();
@@ -134,9 +136,31 @@ public class Main extends ApplicationAdapter {
             } else {
                 player.stop();
             }
+             */
+
+            // Input horizontal por acelerometro
+            float accelX = Gdx.input.getAccelerometerX();
+            float maxSpeed = player.getSpeed();
+            // Factor de sensibilidad
+            float factor = 250f;
+            float vx = MathUtils.clamp(-accelX * factor, -maxSpeed, maxSpeed);
+            player.setVelocityX(vx);
+
 
             // Lógica de jugador y colisiones
             player.update(delta);
+
+            // Wrap-around horizontal
+            float px = player.getX();
+            float pw = player.getWidth();
+            if (px + pw < 0) {
+                // salio por la izquierda, entra por la derecha
+                player.setPosition(worldWidth, player.getY());
+            } else if (px > worldWidth) {
+                // salio por la derecha, entra por la izquierda
+                player.setPosition(-pw, player.getY());
+            }
+
             Rectangle feet = player.getFeetBounds();
             for (PlatformBase b : platformManager.getAllPlatforms()) {
                 if (!b.isVanished() && player.getVelocityY() <= 0) {

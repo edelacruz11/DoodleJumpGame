@@ -1,6 +1,8 @@
 package com.mygdx.jump;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
@@ -11,14 +13,16 @@ public class Player {
     private float width, height;
     private float scale = 2f;
     private float velocityX = 0f;
-    private float speed = 650f;
+    private float speed = 1800f;
     private float velocityY = 0f;
     private float gravity = -1800f;
-    private float jumpSpeed = 1200f;
+    private float jumpSpeed = 2000f;
     private float groundHeight;
     private String color;
     private boolean facingRight = true;
     private boolean onGround = true;
+    private Sound jumpSound;
+
     // Hitbox de pies
     private static final float FEET_W_RATIO = 0.25f;
     private static final float FEET_H_RATIO = 0.1f;
@@ -40,6 +44,9 @@ public class Player {
         float w = width * scale * FEET_W_RATIO;
         float h = height * scale * FEET_H_RATIO;
         boundsFeet = new Rectangle(x + (width*scale - w)/2f, y, w, h);
+
+        FileHandle soundFile = Gdx.files.internal("sounds/jump.ogg");
+        jumpSound = Gdx.audio.newSound(soundFile);
     }
 
     public void update(float delta) {
@@ -52,7 +59,7 @@ public class Player {
         velocityY += gravity * delta;
         y += velocityY * delta;
 
-        // Toca el suelo
+        // Rebote en el suelo
         if (y <= groundHeight) {
             y = groundHeight;
             velocityY = jumpSpeed;
@@ -60,11 +67,6 @@ public class Player {
         } else {
             onGround = false;
         }
-
-        // Límites horizontal
-        float screenW = Gdx.graphics.getWidth();
-        if (x < 0) x = 0;
-        if (x + getWidth() > screenW) x = screenW - getWidth();
 
         // Actualiza hitbox pies
         float w = width * scale * FEET_W_RATIO;
@@ -100,6 +102,7 @@ public class Player {
     public void dispose() {
         jumpTex.dispose();
         duckTex.dispose();
+        if (jumpSound != null) jumpSound.dispose();
     }
 
     public void setPosition(float x, float y) { this.x = x; this.y = y; }
@@ -112,8 +115,17 @@ public class Player {
     public float getWidth() { return width * scale;}
     public float getHeight() { return height * scale;}
     public float getVelocityY() { return velocityY; }
+    public void setVelocityX(float vx) {
+        this.velocityX = vx;
+    }
+    public float getSpeed() {
+        return speed;
+    }
     public Rectangle getFeetBounds() { return boundsFeet;  }
     public void jump() {
         this.velocityY = jumpSpeed;
+        if (jumpSound != null) {
+            jumpSound.play();
+        }
     }
 }
