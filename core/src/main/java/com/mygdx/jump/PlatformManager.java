@@ -1,6 +1,6 @@
-// PlatformManager.java
 package com.mygdx.jump;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -24,7 +24,7 @@ public class PlatformManager {
         this.worldWidth = worldWidth;
         this.scale = scale;
         this.rowHeight = rowHeight;
-        this.cloudStartRow = cloudStartRow;
+        this.cloudStartRow= cloudStartRow;
         this.fullCloudRow = fullCloudRow;
         this.viewHeight = viewHeight;
         this.nextRowIndex = 0;
@@ -41,25 +41,34 @@ public class PlatformManager {
     private void spawnRow() {
         int row = nextRowIndex;
         float y = row * rowHeight;
+        PlatformBase p;
 
-        // Solo filas pares generan algo
         if (row % 2 != 0) {
             advanceRow();
             return;
         }
 
-        if (row < cloudStartRow) {
-            items.add(randomPlatform(y));
-        } else if (row < fullCloudRow) {
-            if (MathUtils.randomBoolean()) {
-                items.add(randomCloud(y));
-            } else {
-                items.add(randomPlatform(y));
+        boolean makeCloud = row >= cloudStartRow
+            && (row < fullCloudRow
+            ? MathUtils.randomBoolean()
+            : true);
+
+        if (makeCloud) {
+            Cloud c = randomCloud(y);
+
+            // Mueve 50% de las nubes a partir de 300, y todas a partir de 400
+            if (row >= 300 && (row < 400 ? MathUtils.randomBoolean(0.5f) : true)) {
+                //velocidad de las nubes
+                float speed = MathUtils.random(100f, 150f);
+                if (MathUtils.randomBoolean()) speed = -speed;
+                c.startMoving(speed);
             }
+            p = c;
         } else {
-            items.add(randomCloud(y));
+            p = randomPlatform(y);
         }
 
+        items.add(p);
         advanceRow();
     }
 
@@ -75,9 +84,7 @@ public class PlatformManager {
     }
 
     private Cloud randomCloud(float y) {
-        float w = (Cloud.texLeft.getWidth()
-            + Cloud.texMiddle.getWidth()
-            + Cloud.texRight.getWidth()) * scale;
+        float w = (Cloud.texLeft.getWidth() + Cloud.texMiddle.getWidth() + Cloud.texRight.getWidth()) * scale;
         float x = MathUtils.random(0f, worldWidth - w);
         return new Cloud(x, y, scale);
     }
@@ -88,10 +95,15 @@ public class PlatformManager {
             spawnRow();
         }
 
+        // Actualiza y elimina
         for (int i = items.size - 1; i >= 0; i--) {
             PlatformBase b = items.get(i);
-            if (b.isVanished() || b.getY() + b.getHeight() < cameraY - rowHeight) {
+            if (b.isVanished() ||
+                b.getY() + b.getHeight() < cameraY - rowHeight) {
                 items.removeIndex(i);
+            } else if (b instanceof Cloud) {
+                // mueve la nube si tiene velocidad
+                ((Cloud)b).update(Gdx.graphics.getDeltaTime(), worldWidth);
             }
         }
     }

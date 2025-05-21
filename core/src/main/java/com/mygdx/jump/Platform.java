@@ -1,4 +1,3 @@
-// Platform.java
 package com.mygdx.jump;
 
 import com.badlogic.gdx.graphics.Texture;
@@ -10,7 +9,7 @@ public class Platform implements PlatformBase {
     private boolean vanished;
 
     public static void loadTextures(float scale) {
-        texLeft   = new Texture("tiles/platforms/left.png");
+        texLeft = new Texture("tiles/platforms/left.png");
         texMiddle = new Texture("tiles/platforms/middle.png");
         texRight  = new Texture("tiles/platforms/right.png");
     }
@@ -31,7 +30,7 @@ public class Platform implements PlatformBase {
 
     public Platform(float x, float y, float scale) {
         this.x = x; this.y = y; this.scale = scale;
-        this.width  = (texLeft.getWidth() + texMiddle.getWidth() + texRight.getWidth()) * scale;
+        this.width = (texLeft.getWidth() + texMiddle.getWidth() + texRight.getWidth()) * scale;
         this.height = texMiddle.getHeight() * scale;
     }
 
@@ -41,9 +40,9 @@ public class Platform implements PlatformBase {
     @Override
     public void render(SpriteBatch batch) {
         if (vanished) return;
-        float wL = texLeft.getWidth()   * scale;
+        float wL = texLeft.getWidth() * scale;
         float wM = texMiddle.getWidth() * scale;
-        float h  = texMiddle.getHeight()* scale;
+        float h = texMiddle.getHeight()* scale;
         batch.draw(texLeft, x, y, wL, h);
         batch.draw(texMiddle, x+wL, y, wM, h);
         batch.draw(texRight, x+wL+wM, y, texRight.getWidth()*scale, h);

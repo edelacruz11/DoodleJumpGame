@@ -1,13 +1,10 @@
 package com.mygdx.jump;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 public class Ground {
-    private Texture groundLeft;
-    private Texture groundMiddle;
-    private Texture groundRight;
+    private Texture groundLeft, groundMiddle, groundRight;
     private float scale = 1.2f;
 
     public Ground() {
@@ -16,30 +13,22 @@ public class Ground {
         groundRight = new Texture("tiles/ground/right.png");
     }
 
-    public void render(SpriteBatch batch) {
-        float tileLeftWidth = groundLeft.getWidth() * scale;
-        float tileRightWidth = groundRight.getWidth() * scale;
-        float tileMiddleWidth = groundMiddle.getWidth() * scale;
-        float tileHeight = groundMiddle.getHeight() * scale;
-
-        float y = 0;
-        float screenWidth = Gdx.graphics.getWidth();
-
-        // Dibuja izquierda
-        batch.draw(groundLeft, 0, y, tileLeftWidth, tileHeight);
-
-        // Dibuja derecha (al borde derecho exacto)
-        float rightX = screenWidth - tileRightWidth;
-        batch.draw(groundRight, rightX, y, tileRightWidth, tileHeight);
-
-        // Dibuja middle entre left y right
-        float middleStartX = tileLeftWidth;
-        float middleEndX = rightX;
-        float currentX = middleStartX;
-
-        while (currentX + tileMiddleWidth <= middleEndX) {
-            batch.draw(groundMiddle, currentX, y, tileMiddleWidth, tileHeight);
-            currentX += tileMiddleWidth;
+    // Dibuja suelo completo, adaptado a worldWidth
+    public void render(SpriteBatch batch, float worldWidth) {
+        float leftW = groundLeft.getWidth() * scale;
+        float midW = groundMiddle.getWidth() * scale;
+        float rightW = groundRight.getWidth() * scale;
+        float height = groundMiddle.getHeight() * scale;
+        // Lado izquierdo
+        batch.draw(groundLeft, 0, 0, leftW, height);
+        // Lado derecho
+        float rightX = worldWidth - rightW;
+        batch.draw(groundRight, rightX, 0, rightW, height);
+        // Piezas middle
+        float x = leftW;
+        while (x + midW <= rightX) {
+            batch.draw(groundMiddle, x, 0, midW, height);
+            x += midW;
         }
     }
 

@@ -17,10 +17,8 @@ public class Player {
     private float jumpSpeed = 1200f;
     private float groundHeight;
     private String color;
-
     private boolean facingRight = true;
     private boolean onGround = true;
-
     // Hitbox de pies
     private static final float FEET_W_RATIO = 0.25f;
     private static final float FEET_H_RATIO = 0.1f;
@@ -108,10 +106,10 @@ public class Player {
     public void setScale(float s) { this.scale = s; }
     public void setSpeed(float s) { this.speed = s; }
     public void setJumpSpeed(float js) { this.jumpSpeed = js; }
-    public void setGravity(float g) { this.gravity   = g; }
+    public void setGravity(float g) { this.gravity = g; }
     public float getX() { return x; }
     public float getY() { return y; }
-    public float getWidth() { return width  * scale;}
+    public float getWidth() { return width * scale;}
     public float getHeight() { return height * scale;}
     public float getVelocityY() { return velocityY; }
     public Rectangle getFeetBounds() { return boundsFeet;  }
